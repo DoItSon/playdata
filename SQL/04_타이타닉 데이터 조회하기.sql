@@ -593,3 +593,95 @@ select e.ename, d.dname, d.loc
 From emp e
 inner join dept d
 on e.deptno = d.deptno and e.ename = "scott";
+
+-- 뉴욕 지역에 근무하는 사원이름과 , 급여 , 지역 등을 조회해보세요.
+select e.ename, sal, loc
+from emp as e
+inner join dept as d
+on e.deptno = d.deptno and loc = 'new york';
+
+-- research 부서에 소속된 사원의 이름과 , 입사일, 급여를 조회해보세요.
+select e.ename, hiredate, sal
+from emp as e
+inner join dept as d
+on e.deptno = d.deptno and dname = 'research';
+
+-- 직무가 manager인 사원의 이름과, 부서명 , 급여, 커미션을 조회해 보세요.
+select e.ename, d.dname, e.sal, e.comm
+from emp e
+inner join dept d
+on e.deptno = d.deptno and job = 'manager';
+
+# self 조인
+-- 동일 테이블에서 진행되는 조인
+
+-- 각 사원의 관리자 이름을 알고 싶다면?
+select e.ename as "사원이름",
+		m.ename as "상사이름"
+from emp e
+inner join emp m
+on e.mgr = m.empno;
+
+-- 관리자 이름이 King인 사원의 이름과 상사이름을 조회하시오.
+select e.ename as "사원이름",
+		m.ename as "상사이름"
+from emp e
+inner join emp m
+on e.mgr = m.empno and m.ename = "King";
+
+-- allen의 동료이름(같은 부서에서 일하는 동료)을 조회하시오.
+select e.deptno, m.ename
+from emp e
+inner join emp m
+on e.ename = 'Allen' and e.deptno = m.deptno and m.ename != "Allen";
+
+# left join
+-- 왼쪽 테이블 기준으로 join(right join은 오른쪽 테이블 join)
+-- 왼쪽 테이블에 컬럼값과 on 조건에 맞는 행이 없을 경우 Null이 들어간다.
+-- join 후 행이 늘어날 수도 있으나 줄어들지 않는다.
+
+-- king도 같이 조회하고 싶다면?
+select e.ename as '사원명', m.ename as '상사이름' # king이 안사라지고 존재
+from emp e
+left join emp m
+on e.mgr = m.empno;
+
+select * from dept;	# 40번이 사라지지 않음!
+select * from emp;
+select d.deptno, d.dname, e.ename
+from dept d
+left join emp e
+on d.deptno = e.deptno;
+
+-- 모든 부서 정보와 함께 급여가 3000 이상인 직원들의 연봉과 이름을 조회하시오.
+select d.*, sal,ename 
+from dept d
+left join emp e
+on d.deptno = e.deptno and e.sal >= 3000;
+
+-- 모든 부서 정보와 함께 커미션이 있는 직원들의 커미션과 이름을 조회하시오.
+select d.*, e.comm,e.ename 
+from dept d
+left join emp e
+on d.deptno = e.deptno and e.comm > 0;
+
+-- 모든 부서의 부서별 연봉에 대한 총합과 평균과 표준편차를 구하고,
+-- 모든 부서의 사원 수를 구하시오.
+select  d.*,
+		sum(e.sal) as sum_sal, 
+		avg(e.sal) as avg_sal,
+        std(e.sal) as std_sal,
+        count(e.empno) as everybody
+from dept d
+left join emp e
+on d.deptno = e.deptno
+group by d.deptno;
+
+-- 각 관리자의 부하직원 수와 부하직원들의 평균연봉을 구하시오. # 다시보기!
+select m.empno, m.ename,
+		count(e.empno) as count_empno,
+		avg(e.sal) as avg_sal
+from emp e
+inner join emp m # 관리자 테이블이라 생각
+on m.empno = e.mgr
+group by m.empno;
