@@ -685,3 +685,140 @@ from emp e
 inner join emp m # 관리자 테이블이라 생각
 on m.empno = e.mgr
 group by m.empno;
+
+# SubQuery
+-- 쿼리 안쪽에 쿼리를 넣을 수 있다.
+-- select 절에서 서브쿼리
+select *, (select dname from dept d where d.deptno=e.deptno) as dname
+from emp e;
+
+-- where 절에서 서브쿼리
+-- soctt과 같은 부서에 있는 직원 이름을 검색
+select ename
+from emp
+where deptno = (select deptno from emp where ename = "scott")
+and ename != "scott";
+
+-- smith와 동일한 직무를 가진 직원들을 정보를 검색
+select *
+from emp
+where job = (select job from emp where ename = 'smith')
+and ename != 'smith';
+
+-- smith의 급여 이상을 받는 사원명과 급여를 검색해보세요.
+select ename, sal
+from emp
+where sal >= (select sal from emp where ename = 'smith') and ename != 'smith';
+
+-- DALLAS에 근무하는 사원의 이름, 부서번호를 사원이름으로 오름차순으로 정렬해서 조회하시오.
+select ename, deptno
+from emp
+where deptno = (select deptno from dept where loc = 'DALLAS')
+order by ename;
+
+-- 직무(job)가 Manager인 사람들이 속한 부서의 부서번호와 부서명, 지역을 조회하시오.
+	-- manager 사람들이 다수이기 때문에 where 절에 in을 활용
+select deptno,dname,loc
+from dept
+where deptno in (select deptno from emp where job = 'manager');
+
+-- from 절에서 서브쿼리 (table)이라 생각하기!
+
+-- emp 테이블에서 급여가 2000이 넘는 사람들의 이름과 부서번호, 부서이름, 지역조회
+select e.ename, e.deptno, d.dname, d.loc
+from (select ename, deptno from emp where sal > 2000) as e
+inner join dept as d
+on d.deptno = e.deptno;
+
+-- emp 테이블에서 커미션이 있는 사람들의 이름과 부서번호, 부서이름, 지역조회
+select e.ename, e.deptno, d.dname, d.loc
+from (select ename, deptno from emp where comm > 0) as e
+inner join dept as d
+on d.deptno = e.deptno;
+
+-- join 절에서 서브쿼리
+-- 모든 부서의 부서이름과, 지역, 부서 내의 평균급여를 조회하시오.
+select d.dname, d.loc, avg_sal
+from dept as d # 여기를 기준으로 left join이 붙는다.
+left join (select avg(sal) as avg_sal, deptno from emp group by deptno) as e
+on e.deptno = d.deptno;
+
+-- 서브쿼리 이용해서 테이블 복제하기
+create table emp01 as select * from emp;
+select * from emp01;
+desc emp01; # 제약조건은 복사가 안된다.
+
+-- 거짓 조건을 줘서 테이블 구조만 복제하기
+create table emp02 as select * from emp where 1=0;
+select * from emp02;
+
+-- 서브쿼리를 활용한 insert
+insert into emp02 select * from emp;
+
+-- 타이타닉 테이블에서 기혼여성(Mrs.)에 대한 이름과 나이, 가족이름, 가족의 나이를 조회하시오.
+select *	# 다시 해보기
+from (select name from titanic_raw where name like 'Mrs.') as a
+inner join titanic_raw as b
+on a.cabin = b.cabin;
+
+select * from titanic_Raw;
+-- 항구별 평균 운임료를 특성으로 추가
+select a.*, add_feature # 컬럼이 추가됨!
+from titanic_Raw as a
+left join (
+	select embarked, avg(fare) as add_feature
+    from titanic_raw
+    group by embarked
+) as b
+on a.embarked = b.embarked;
+
+-- 항구별 평균 나이와 여성비율을 특성으로 추가
+select a.*, add_feature1, add_feature2
+from titanic_raw as a
+left join(select embarked,avg(age) as add_feature1,
+		avg(if(gender = 'female',1,0)) as add_feature2
+from titanic_raw
+group by embarked) as b
+on a.embarked = b.embarked;
+
+-- 각 객실번호의 빈도수를 구해서 객실번호를 기준으로 조인하시오.
+-- 각 객실번호의 빈도수를 특성으로 추가
+select a.*,cnt_cabin
+from titanic_raw as a
+left join(select cabin, count(cabin) as cnt_cabin
+from titanic_raw
+group by cabin) as b
+on a.cabin = b.cabin;
+
+
+# 미니 토의
+-- 가족이 있는 집단에 데이터를 정렬
+select a.*, family_name
+from titanic_raw as a
+left join  (select name, SUBSTRING_INDEX(name,",",1) as family_name
+from titanic_raw) as b
+on b.name = a.name
+where sibsp+parch != 0
+order by family_name;
+
+-- 가족있는 집단에 대한 pclass와 embarked 생존율
+select embarked, pclass, avg(survived) as avg_survived
+from titanic_raw as a
+left join  (select name, SUBSTRING_INDEX(name,",",1) as family_name
+from titanic_raw) as b
+on b.name = a.name
+where sibsp+parch != 0
+group by embarked,pclass
+order by embarked,pclass;
+
+-- 가장 많이 살아남은 가문 위 5개 아래 5개 가문 대조 (pclass,fare)
+select family_name, avg(survived) as avg_survived, pclass, fare
+from titanic_raw as a
+left join  (select name, SUBSTRING_INDEX(name,",",1) as family_name
+from titanic_raw) as b
+on b.name = a.name
+where sibsp+parch != 0 
+group by family_name
+order by avg_survived desc;
+
+-- 동행자가 있을 경우에 생존율이 더 높았다.
